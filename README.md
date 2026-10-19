@@ -9,7 +9,7 @@ API autonome de la démo mobile et du formulaire professionnel. Le site et la d�
 3. Installer les dépendances : `npm install`.
 4. Appliquer les migrations : `npm run migrate:remote`.
 5. Ajouter un secret `ADMIN_TOKEN` avec `wrangler secret put ADMIN_TOKEN`.
-6. Déployer : `npm run deploy`.
+6. Dans GitHub, configurer les secrets `CLOUDFLARE_API_TOKEN` et `CLOUDFLARE_ACCOUNT_ID`, puis la variable `D1_DATABASE_ID`. Le workflow GitHub Actions applique les migrations et déploie l'API à chaque changement de `main`.
 7. Configurer les clients GitHub Pages avec l'URL publique de ce Worker, puis vérifier les opérations entre deux téléphones.
 
 Les codes de carte Camille et Julien et la session de démonstration existante sont conservés. Les demandes âgées de plus de 180 jours sont supprimées lors du dépôt d'une nouvelle demande. La lecture des demandes nécessite l'en-tête `Authorization: Bearer <ADMIN_TOKEN>` sur `GET /api/contact`.
