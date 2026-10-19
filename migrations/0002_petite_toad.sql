@@ -1,0 +1,1 @@
+ALTER TABLE `demo_notifications` ADD `paused` integer DEFAULT 0 NOT NULL;
