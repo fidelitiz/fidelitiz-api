@@ -2,6 +2,9 @@ name = "fidelitiz-api"
 main = "src/index.ts"
 compatibility_date = "2026-05-22"
 
+[secrets]
+required = ["ADMIN_PASSWORD_HASH"]
+
 [[d1_databases]]
 binding = "DB"
 database_name = "fidelitiz"
