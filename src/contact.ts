@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 
-const ORIGINS = new Set(["https://fidelitiz.github.io", "https://fidelitiz.fr", "https://www.fidelitiz.fr"]);
+const ORIGINS = new Set(["https://fidelitiz.github.io", "https://fidelitiz-pro-beta.github.io", "https://fidelitiz.fr", "https://www.fidelitiz.fr"]);
 function allowed(request: Request) {
   const origin = request.headers.get("origin") ?? "";
   return origin === new URL(request.url).origin || ORIGINS.has(origin) || /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
@@ -65,15 +65,5 @@ export async function POST(request: Request) {
     return response(request, 201, { ok: true });
   } catch {
     return response(request, 500, { error: "La demande n’a pas pu être enregistrée. Réessayez plus tard." });
-  }
-}
-export async function GET(request: Request) {
-  if (!allowed(request)) return response(request, 403, { error: "Origine refusée." });
-  if (!env.ADMIN_TOKEN || request.headers.get("authorization") !== "Bearer " + env.ADMIN_TOKEN) return response(request, 401, { error: "Accès refusé." });
-  try {
-    const rows = await env.DB.prepare("SELECT * FROM contact_leads ORDER BY created_at DESC LIMIT 100").all();
-    return response(request, 200, { leads: rows.results });
-  } catch {
-    return response(request, 500, { error: "Boîte de réception indisponible." });
   }
 }
