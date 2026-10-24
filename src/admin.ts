@@ -37,10 +37,6 @@ function redirect(location: string, cookie?: string): Response {
   return new Response(null, { status: 303, headers: h });
 }
 
-function sameOrigin(request: Request): boolean {
-  return request.headers.get("origin") === new URL(request.url).origin;
-}
-
 function cookieValue(request: Request): string | null {
   const entry = request.headers.get("cookie")?.split(";").map(item => item.trim()).find(item => item.startsWith(`${COOKIE}=`));
   return entry?.slice(COOKIE.length + 1) ?? null;
@@ -101,7 +97,6 @@ export async function page(request: Request): Promise<Response> {
 }
 
 export async function login(request: Request): Promise<Response> {
-  if (!sameOrigin(request)) return new Response("Forbidden", { status: 403, headers: headers("text/plain; charset=utf-8") });
   const config = passwordConfig();
   if (!config || !env.DB) return new Response("Service unavailable", { status: 503, headers: headers("text/plain; charset=utf-8") });
   try {
@@ -126,7 +121,6 @@ export async function login(request: Request): Promise<Response> {
 }
 
 export async function logout(request: Request): Promise<Response> {
-  if (!sameOrigin(request)) return new Response("Forbidden", { status: 403, headers: headers("text/plain; charset=utf-8") });
   try {
     const hash = await session(request);
     if (hash) await env.DB.prepare("DELETE FROM admin_sessions WHERE token_hash=?").bind(hash).run();
