@@ -39,27 +39,33 @@ export async function POST(request: Request) {
     const data = Object.fromEntries(names.map((name, index) => [name, field(input, name, limits[index])])) as Record<typeof names[number], string>;
     const { firstName, lastName, phone, business, siren, siret, address, postalCode, city, activity, legalForm, message } = data;
     const email = data.email.toLowerCase();
-    if (!firstName || firstName.length > 80 || !lastName || lastName.length > 80 ||
-      !business || business.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+    const directory = input.mode === "directory";
+    if (!business || business.length > 120 || firstName.length > 80 || lastName.length > 80 ||
       email.length > 254 || phone.length > 40 || address.length > 180 ||
       postalCode.length > 10 || city.length > 100 || activity.length > 20 ||
-      legalForm.length > 20 || message.length > 2000 || input.consent !== true ||
+      legalForm.length > 20 || message.length > 2000 ||
       (siren && !/^\d{9}$/.test(siren)) || (siret && !/^\d{14}$/.test(siret))) {
+      return response(request, 400, { error: "Vérifiez les champs du formulaire." });
+    }
+    if (directory ? (!/^\d{9}$/.test(siren) || firstName || lastName || email || phone) :
+      (!firstName || !lastName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || input.consent !== true)) {
       return response(request, 400, { error: "Vérifiez les champs du formulaire." });
     }
     const db = env.DB;
     if (!db) throw new Error("D1 indisponible");
     const cutoff = new Date(Date.now() - 60 * 60_000).toISOString();
-    const recent = await db.prepare("SELECT count(*) AS n FROM contact_leads WHERE email=? AND created_at>?")
-      .bind(email, cutoff).first<{ n: number }>();
-    if ((recent?.n ?? 0) >= 5) return response(request, 429, { error: "Trop de demandes récentes. Réessayez plus tard." });
+    const recent = await db.prepare(directory
+      ? "SELECT count(*) AS n FROM contact_leads WHERE siren=? AND created_at>?"
+      : "SELECT count(*) AS n FROM contact_leads WHERE email=? AND created_at>?")
+      .bind(directory ? siren : email, cutoff).first<{ n: number }>();
+    if ((recent?.n ?? 0) >= (directory ? 3 : 5)) return response(request, 429, { error: "Trop de demandes récentes. Réessayez plus tard." });
     const now = new Date().toISOString();
     await db.batch([
       db.prepare("DELETE FROM contact_leads WHERE created_at<?")
         .bind(new Date(Date.now() - 180 * 86_400_000).toISOString()),
       db.prepare("INSERT INTO contact_leads (id,first_name,last_name,email,phone,business,interest,siren,siret,address,postal_code,city,activity,legal_form,message,consent_at,created_at,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
         .bind(crypto.randomUUID(), firstName, lastName, email, phone || null, business,
-          "Présentation", siren || null, siret || null, address || null, postalCode || null, city || null,
+          directory ? "Annuaire" : "Présentation", siren || null, siret || null, address || null, postalCode || null, city || null,
           activity || null, legalForm || null, message, now, now, "nouvelle"),
     ]);
     return response(request, 201, { ok: true });
