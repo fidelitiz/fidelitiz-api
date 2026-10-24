@@ -11,6 +11,8 @@ export default {
       return request.method === "POST" ? admin.login(request) : new Response("Method not allowed", { status: 405 });
     }
     if (path === "/admin/logout") return request.method === "POST" ? admin.logout(request) : new Response("Method not allowed", { status: 405 });
+    if (path === "/admin/lead/delete") return request.method === "GET" ? admin.deletePage(request) : new Response("Method not allowed", { status: 405 });
+    if (path === "/admin/lead") return request.method === "POST" ? admin.leadAction(request) : new Response("Method not allowed", { status: 405 });
     const handler = path === "/api/cards" ? cards : path === "/api/contact" ? contact : null;
     if (!handler) return new Response("Not found", { status: 404 });
     if (request.method === "OPTIONS") return handler.OPTIONS(request);
