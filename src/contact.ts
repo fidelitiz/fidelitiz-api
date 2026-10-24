@@ -3,7 +3,7 @@ import { env } from "cloudflare:workers";
 const ORIGINS = new Set(["https://fidelitiz.github.io", "https://fidelitiz-pro-beta.github.io", "https://fidelitiz.fr", "https://www.fidelitiz.fr"]);
 function allowed(request: Request) {
   const origin = request.headers.get("origin") ?? "";
-  return origin === new URL(request.url).origin || ORIGINS.has(origin) || /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
+  return origin === new URL(request.url).origin || origin === "null" || ORIGINS.has(origin) || /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin);
 }
 function headers(request: Request) {
   const origin = request.headers.get("origin") ?? "";
