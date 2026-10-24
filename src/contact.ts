@@ -23,6 +23,21 @@ function field(input: Record<string, unknown>, name: string, max: number) {
   const value = input[name];
   return typeof value === "string" ? value.trim().slice(0, max + 1) : "";
 }
+type DirectoryResult = {
+  siren?: string; nom_complet?: string; activite_principale?: string; nature_juridique?: string;
+  siege?: { siret?: string; adresse?: string; code_postal?: string; libelle_commune?: string };
+};
+async function directoryDetails(siren: string): Promise<DirectoryResult | null> {
+  try {
+    const url = new URL("https://recherche-entreprises.api.gouv.fr/search");
+    url.searchParams.set("q", siren);
+    url.searchParams.set("per_page", "1");
+    const res = await fetch(url, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(3000) });
+    if (!res.ok) return null;
+    const data = await res.json() as { results?: DirectoryResult[] };
+    return data.results?.find(result => result.siren === siren) ?? null;
+  } catch { return null; }
+}
 export function OPTIONS(request: Request) {
   return new Response(null, { status: 204, headers: headers(request) });
 }
@@ -59,14 +74,19 @@ export async function POST(request: Request) {
       : "SELECT count(*) AS n FROM contact_leads WHERE email=? AND created_at>?")
       .bind(directory ? siren : email, cutoff).first<{ n: number }>();
     if ((recent?.n ?? 0) >= (directory ? 3 : 5)) return response(request, 429, { error: "Trop de demandes récentes. Réessayez plus tard." });
+    const official = directory ? await directoryDetails(siren) : null;
+    const siege = official?.siege;
     const now = new Date().toISOString();
     await db.batch([
       db.prepare("DELETE FROM contact_leads WHERE created_at<?")
         .bind(new Date(Date.now() - 180 * 86_400_000).toISOString()),
       db.prepare("INSERT INTO contact_leads (id,first_name,last_name,email,phone,business,interest,siren,siret,address,postal_code,city,activity,legal_form,message,consent_at,created_at,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
-        .bind(crypto.randomUUID(), firstName, lastName, email, phone || null, business,
-          directory ? "Annuaire" : "Présentation", siren || null, siret || null, address || null, postalCode || null, city || null,
-          activity || null, legalForm || null, message, now, now, "nouvelle"),
+        .bind(crypto.randomUUID(), firstName, lastName, email, phone || null, (official?.nom_complet || business).slice(0, 120),
+          directory ? "Annuaire" : "Présentation", siren || null, (siege?.siret || siret || "").slice(0, 14) || null,
+          (siege?.adresse || address || "").slice(0, 180) || null, (siege?.code_postal || postalCode || "").slice(0, 10) || null,
+          (siege?.libelle_commune || city || "").slice(0, 100) || null,
+          (official?.activite_principale || activity || "").slice(0, 20) || null,
+          (official?.nature_juridique || legalForm || "").slice(0, 20) || null, message, now, now, "nouvelle"),
     ]);
     return response(request, 201, { ok: true });
   } catch {
